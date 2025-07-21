@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BNPP | Main Control Room Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto Condensed', sans-serif;
+            background-color: #5a5a52;
+            color: #111;
+            user-select: none;
+        }
+        .control-room {
+            background-color: #c8c8b8;
+            padding: 1rem;
+            border: 4px solid #333;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .main-panel {
+            background-color: #7d7d70;
+            border: 2px solid #5f5f54;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .instrument-panel {
+            background-color: #e0e0d0;
+            border: 2px solid #b0b0a0;
+            border-radius: 4px;
+            padding: 1rem;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.3);
+        }
+        .gauge-square {
+            position: relative;
+            width: 160px;
+            height: 120px;
+            background-color: #222;
+            color: white;
+            border: 3px solid #555;
+            border-radius: 4px;
+            margin: 0 auto;
+            padding: 5px;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .gauge-bar-bg {
+            width: 20px;
+            height: 100%;
+            background-color: #444;
+            border: 1px solid #666;
+            position: relative;
+            overflow: hidden;
+        }
+        .gauge-bar-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background-color: #34d399;
+            transition: height 0.2s linear, background-color 0.3s ease;
+        }
+        .westinghouse-button {
+            background-color: #3d405b;
+            color: white;
+            border: 2px solid #222;
+            padding: 0.5rem 1rem;
+            font-weight: 700;
+            box-shadow: 0 3px #222;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.1s ease;
+        }
+        .westinghouse-button:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px #222;
+        }
+        .trip-button {
+            background-color: #e63946;
+            color: white;
+            border-radius: 8px;
+            width: 100%;
+            height: 80px;
+            border: 4px solid #a01c1c;
+            box-shadow: 0 5px #7a1515;
+            font-size: 1.5rem;
+            line-height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .trip-button:active {
+            box-shadow: 0 2px #7a1515;
+            transform: translateY(3px);
+        }
+        .indicator-light {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 4px;
+            border: 2px solid #333;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        .light-off { background-color: #5a5a5a; box-shadow: inset 0 0 5px rgba(0,0,0,0.7); }
+        .light-ok { background-color: #4ade80; box-shadow: 0 0 10px #4ade80; }
+        .light-warn { background-color: #facc15; box-shadow: 0 0 10px #facc15; }
+        .light-danger { background-color: #f87171; box-shadow: 0 0 10px #f87171; }
+        
+        .meltdown-overlay.active {
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+        .eccs-guard {
+            background-color: #f59e0b;
+            border: 2px solid #b45309;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            transform-origin: top;
+        }
+        .eccs-guard.open {
+            transform: perspective(150px) rotateX(-100deg);
+        }
+        .hazard-button {
+            background-color: #6b7280;
+            color: white;
+        }
+        .siren {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 150px;
+            overflow: hidden;
+        }
+        .siren::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 100%;
+            transform-origin: top left;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent 0%, transparent 50%, rgba(255, 0, 0, 0.4) 75%, transparent 100%);
+            animation: siren-rotate 2s linear infinite;
+        }
+        @keyframes siren-rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="control-room w-full max-w-screen-xl">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b-2 border-gray-500">
+            <h1 class="text-3xl font-bold text-gray-800">Bataan Nuclear Power Plant Simulator</h1>
+            <div id="digital-clock" class="text-3xl font-orbitron text-gray-800"></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <!-- LEFT PANELS -->
+            <div id="reactor-controls" class="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Controls generated here -->
+            </div>
+
+            <!-- RIGHT PANEL (STATUS) -->
+            <div class="lg:col-span-2 flex flex-col space-y-4">
+                <div class="main-panel text-white p-4 text-center">
+                    <h2 class="text-xl font-bold border-b-2 border-b-gray-400 pb-2 mb-2">PLANT STATUS</h2>
+                    <div id="stability-readout" class="text-5xl font-orbitron">100.0%</div>
+                    <p class="text-sm">REACTOR CORE INTEGRITY</p>
+                </div>
+                <div class="instrument-panel flex-grow">
+                     <h2 class="text-lg font-bold text-center border-b-2 border-gray-400 pb-2 mb-4">SYSTEM ALARMS</h2>
+                     <div id="system-status-lights" class="space-y-3">
+                        <!-- Status lights generated here -->
+                    </div>
+                </div>
+                 <div class="instrument-panel">
+                     <h2 class="text-lg font-bold text-center border-b-2 border-gray-400 pb-2 mb-4">EXTERNAL HAZARDS</h2>
+                     <div class="space-y-4">
+                        <!-- Earthquake -->
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold">Earthquake:</span>
+                            <span id="earthquake-intensity" class="font-orbitron text-xl">0.0</span>
+                            <button id="earthquake-trigger" class="westinghouse-button hazard-button text-sm">Trigger</button>
+                        </div>
+                        <!-- Typhoon -->
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold">Typhoon Signal:</span>
+                            <span id="typhoon-signal" class="font-orbitron text-xl">0</span>
+                            <button id="typhoon-trigger" class="westinghouse-button hazard-button text-sm">Cycle</button>
+                        </div>
+                         <!-- Fire -->
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold">Fire Alarm:</span>
+                            <div id="fire-alarm-light" class="indicator-light light-off"></div>
+                            <button id="fire-trigger" class="westinghouse-button hazard-button text-sm">Trigger</button>
+                        </div>
+                        <!-- Tsunami -->
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold">Tsunami Warning:</span>
+                            <div id="tsunami-warning-light" class="indicator-light light-off"></div>
+                        </div>
+                     </div>
+                </div>
+                <div class="instrument-panel flex items-center justify-center p-4">
+                    <button id="trip-button" class="trip-button font-bold">REACTOR TRIP</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="meltdown-overlay" class="fixed inset-0 z-50 flex items-center justify-center flex-col opacity-0 pointer-events-none transition-opacity duration-500">
+        <div class="siren"></div>
+        <div id="trip-message-container" class="text-center text-white">
+            <h2 class="text-8xl font-bold text-red-500 animate-pulse">TRIP</h2>
+            <p id="meltdown-reason" class="text-3xl mt-2">Automatic reactor trip initiated.</p>
+            <p class="text-xl mt-1">Core shutdown sequence active.</p>
+        </div>
+        <div id="fallout-message-container" class="text-center text-white hidden">
+             <h2 class="text-8xl font-bold text-yellow-300 animate-pulse">!!! MELTDOWN !!!</h2>
+             <p class="text-3xl mt-2 text-red-500">NUCLEAR FALLOUT IMMINENT</p>
+             <div class="mt-4 text-left bg-gray-900 p-4 rounded-lg max-w-2xl mx-auto">
+                <p><strong class="text-yellow-400">Projected Fallout Radius:</strong> 30-kilometer exclusion zone.</p>
+                <p class="mt-2"><strong class="text-yellow-400">IMMEDIATE EVACUATION ORDERED:</strong> All of Bataan, southern Zambales, and western Pampanga.</p>
+                <p class="mt-2"><strong class="text-yellow-400">SHELTER-IN-PLACE ADVISORY:</strong> Metro Manila and Cavite. Await further instructions.</p>
+                <hr class="my-3 border-gray-600">
+                <p><strong class="text-red-500">Projected Casualties:</strong></p>
+                <ul class="list-disc list-inside text-red-400">
+                    <li><strong class="text-red-300">Deaths (Acute Radiation):</strong> ~1,500</li>
+                    <li><strong class="text-red-300">Injuries (Radiation Sickness):</strong> ~45,000</li>
+                    <li><strong class="text-red-300">Long-Term Mutations/Cancers:</strong> Elevated risk for ~1.2 Million</li>
+                </ul>
+             </div>
+        </div>
+        <button id="resetButton" class="mt-8 westinghouse-button bg-gray-200 text-black text-xl">RESET SIMULATION</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const controlRoom = document.querySelector('.control-room');
+            const controlsContainer = document.getElementById('reactor-controls');
+            const stabilityReadout = document.getElementById('stability-readout');
+            const meltdownOverlay = document.getElementById('meltdown-overlay');
+            const meltdownReason = document.getElementById('meltdown-reason');
+            const resetButton = document.getElementById('resetButton');
+            const tripButton = document.getElementById('trip-button');
+            const systemStatusLightsContainer = document.getElementById('system-status-lights');
+            const digitalClock = document.getElementById('digital-clock');
+            const tripMessageContainer = document.getElementById('trip-message-container');
+            const falloutMessageContainer = document.getElementById('fallout-message-container');
+
+            // Hazard controls
+            const earthquakeIntensityDisplay = document.getElementById('earthquake-intensity');
+            const earthquakeTrigger = document.getElementById('earthquake-trigger');
+            const typhoonSignalDisplay = document.getElementById('typhoon-signal');
+            const typhoonTrigger = document.getElementById('typhoon-trigger');
+            const fireAlarmLight = document.getElementById('fire-alarm-light');
+            const fireTrigger = document.getElementById('fire-trigger');
+            const tsunamiWarningLight = document.getElementById('tsunami-warning-light');
+
+            // Audio components
+            let audioCtx;
+            let sirenOscillator;
+            let lfo;
+
+            const systems = {
+                controlRods: { label: "Control Rods", unit: "% withdrawn", min: 0, max: 100, value: 80, safeMin: 10, safeMax: 90 },
+                coolantFlow: { label: "Coolant Flow", unit: "%", min: 0, max: 100, value: 80, safeMin: 70, safeMax: 100 },
+                coolantTemp: { label: "RCS Temp", unit: "°C", min: 250, max: 350, value: 315, safeMin: 290, safeMax: 325 },
+                pressurizerPSI: { label: "Pressurizer", unit: "bar", min: 100, max: 200, value: 155, safeMin: 150, safeMax: 160 },
+                steamGenLevel: { label: "Steam Gen. Lvl", unit: "%", min: 0, max: 100, value: 60, safeMin: 50, safeMax: 75 },
+                generatorOutput: { label: "Generator Output", unit: "MW", min: 0, max: 621, value: 0, safeMin: 0, safeMax: 472 },
+                boronCon: { label: "Boron Conc.", unit: "ppm", min: 0, max: 2000, value: 800, safeMin: 200, safeMax: 1800 },
+                eccs: { label: "ECCS", active: false }
+            };
+
+            let hazards = {
+                earthquake: 0,
+                typhoon: 0,
+                fire: false,
+                tsunami: false,
+                rodFailure: false
+            };
+
+            let coreIntegrity = 100;
+            let isTripped = false;
+            let gameLoop;
+            let clockLoop;
+
+            function initialize() {
+                controlsContainer.innerHTML = '';
+                systemStatusLightsContainer.innerHTML = '';
+                isTripped = false;
+                coreIntegrity = 100;
+                systems.eccs.active = false;
+                hazards = { earthquake: 0, typhoon: 0, fire: false, tsunami: false, rodFailure: false };
+
+                // Stop siren sound on reset
+                if (sirenOscillator) {
+                    sirenOscillator.stop();
+                    lfo.stop();
+                    sirenOscillator = null;
+                    lfo = null;
+                }
+
+                // Set stable initial values for mid-range power output
+                systems.controlRods.value = 80;
+                systems.coolantFlow.value = 85;
+                systems.coolantTemp.value = 310;
+                systems.pressurizerPSI.value = 155;
+                systems.steamGenLevel.value = 65;
+                systems.boronCon.value = 1000;
+
+                for (const key of Object.keys(systems)) {
+                    if (key === 'eccs') continue;
+                    const config = systems[key];
+                    if (key === 'generatorOutput') {
+                        createDisplayPanel(key, config);
+                    } else {
+                        createControl(key, config);
+                    }
+                    createStatusLight(key, config);
+                }
+                createECCSControl();
+
+
+                updateAllUI();
+                updateHazardsUI();
+                meltdownOverlay.classList.remove('active');
+                meltdownOverlay.style.opacity = '0';
+                meltdownOverlay.style.pointerEvents = 'none';
+                
+                if(gameLoop) clearInterval(gameLoop);
+                gameLoop = setInterval(updateState, 250);
+
+                if(clockLoop) clearInterval(clockLoop);
+                clockLoop = setInterval(updateClock, 1000);
+            }
+
+            function updateClock() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString();
+                const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                digitalClock.textContent = `${dateString}, 1986 ${timeString}`;
+            }
+            
+            function createECCSControl() {
+                 const controlHTML = `
+                    <div class="instrument-panel text-center lg:col-span-1">
+                        <h3 class="font-bold text-md mb-2">ECCS</h3>
+                        <div class="relative w-full h-24 p-2 bg-gray-700 rounded">
+                            <div class="relative w-full h-full">
+                                <button id="eccs-button" class="w-full h-full bg-blue-600 text-white font-bold text-xl westinghouse-button" disabled>INJECT</button>
+                                <div id="eccs-guard" class="eccs-guard flex items-center justify-center text-black font-bold text-lg">
+                                    LIFT TO ARM
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                controlsContainer.innerHTML += controlHTML;
+                document.getElementById('eccs-guard').addEventListener('click', (e) => {
+                    e.currentTarget.classList.add('open');
+                    document.getElementById('eccs-button').disabled = false;
+                });
+                document.getElementById('eccs-button').addEventListener('click', () => {
+                    if(!isTripped) {
+                        systems.eccs.active = true;
+                    }
+                });
+            }
+            
+            function createDisplayPanel(id, config) {
+                 const displayHTML = `
+                    <div class="instrument-panel text-center">
+                        <h3 class="font-bold text-md mb-2">${config.label}</h3>
+                        <div class="gauge-square flex items-center justify-center">
+                            <div class="flex-grow text-center">
+                                <div id="${id}-readout" class="text-4xl">${config.value.toFixed(0)}</div>
+                                <div class="text-lg">${config.unit}</div>
+                            </div>
+                        </div>
+                        <div class="text-xs mt-2 text-gray-700 font-bold">
+                            SAFE: &lt; ${config.safeMax}MW / MAX: ${config.max}MW
+                        </div>
+                    </div>
+                `;
+                controlsContainer.innerHTML += displayHTML;
+            }
+
+            function createControl(id, config) {
+                const controlHTML = `
+                    <div class="instrument-panel text-center">
+                        <h3 class="font-bold text-md mb-2">${config.label}</h3>
+                        <div class="gauge-square flex items-center justify-center gap-2">
+                            <div class="flex-grow text-center">
+                                <div id="${id}-readout" class="text-3xl">${config.value.toFixed(0)}</div>
+                                <div class="text-sm">${config.unit}</div>
+                            </div>
+                            <div class="gauge-bar-bg">
+                                <div id="${id}-bar" class="gauge-bar-fill"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-center gap-2 mt-3">
+                            <button class="westinghouse-button" data-sys="${id}" data-op="-">--</button>
+                            <button class="westinghouse-button" data-sys="${id}" data-op="+">++</button>
+                        </div>
+                    </div>
+                `;
+                controlsContainer.innerHTML += controlHTML;
+            }
+
+            function createStatusLight(id, config) {
+                const lightHTML = `
+                    <div class="flex items-center justify-between px-2">
+                        <span class="text-sm font-bold">${config.label}</span>
+                        <div id="${id}-light" class="indicator-light light-off"></div>
+                    </div>
+                `;
+                systemStatusLightsContainer.innerHTML += lightHTML;
+            }
+            
+            function updateState() {
+                if (isTripped && !hazards.rodFailure) {
+                    return;
+                }
+
+                if (isTripped && hazards.rodFailure) {
+                    systems.generatorOutput.value = 0;
+                    systems.controlRods.value = Math.max(15, systems.controlRods.value); 
+                    let neutronFlux = (systems.controlRods.value / 100) * 150;
+                    neutronFlux -= (systems.boronCon.value / 2000) * 50;
+                    let tempChange = (neutronFlux) * 0.05; 
+                    tempChange -= ((systems.coolantFlow.value / 100) - 0.85) * 0.4;
+                    systems.coolantTemp.value += tempChange;
+                    systems.pressurizerPSI.value += (systems.coolantTemp.value - 310) * 0.5;
+                } else {
+                    let neutronFlux = (systems.controlRods.value / 100) * 150; 
+                    neutronFlux -= (systems.boronCon.value / 2000) * 50; 
+                    neutronFlux = Math.max(0, neutronFlux);
+                    
+                    let calculatedPower = (neutronFlux / 125) * systems.generatorOutput.max;
+                    systems.generatorOutput.value = Math.max(0, Math.min(systems.generatorOutput.max, calculatedPower));
+
+                    let tempChange = (neutronFlux - 95) * 0.05; 
+                    tempChange -= ((systems.coolantFlow.value / 100) - 0.85) * 0.4; 
+                    systems.coolantTemp.value += tempChange;
+
+                    systems.pressurizerPSI.value += (systems.coolantTemp.value - 310) * 0.5;
+                }
+                
+                if (systems.eccs.active) {
+                    systems.coolantTemp.value -= 10; 
+                    systems.pressurizerPSI.value += 5; 
+                    document.getElementById('eccs-button').classList.add('bg-red-500');
+                }
+
+                for (const key of Object.keys(systems)) {
+                    if (key === 'eccs' || key === 'generatorOutput') continue;
+                    const config = systems[key];
+                    config.value = Math.max(config.min, Math.min(config.max, config.value));
+                }
+
+                let integrityDamage = 0;
+                let isAnySystemUnsafe = false;
+
+                for (const key of Object.keys(systems)) {
+                    if (key === 'eccs') continue;
+                    const config = systems[key];
+                    if (typeof config.safeMin !== 'undefined' && typeof config.safeMax !== 'undefined') {
+                        if (config.value < config.safeMin || config.value > config.safeMax) {
+                            let deviation = Math.abs(config.value - (config.value < config.safeMin ? config.safeMin : config.safeMax));
+                            let sensitivity = (key === 'coolantTemp' || key === 'pressurizerPSI' || key === 'generatorOutput') ? 20 : 10;
+                            integrityDamage += deviation / ((config.max - config.min) / sensitivity);
+                            isAnySystemUnsafe = true;
+                        }
+                    }
+                }
+                
+                if (isAnySystemUnsafe) {
+                    coreIntegrity -= integrityDamage * 0.5;
+                } else if (!isTripped) {
+                    coreIntegrity += 0.1;
+                }
+                
+                coreIntegrity = Math.max(0, Math.min(100, coreIntegrity));
+
+                if (!isTripped) {
+                    if (systems.pressurizerPSI.value < 130) triggerTrip("LOW PRESSURIZER PRESSURE");
+                    if (systems.coolantTemp.value > 340) triggerTrip("HIGH RCS TEMPERATURE");
+                    if (systems.coolantFlow.value < 50) triggerTrip("LOW COOLANT FLOW");
+                    if (hazards.earthquake >= 7.0) triggerTrip("EMERGENCY: EARTHQUAKE");
+                    if (hazards.typhoon === 5) triggerTrip("EMERGENCY: TYPHOON SIGNAL 5");
+                    if (hazards.typhoon === 4) triggerTrip("GRID DISCONNECT - ROD FAILURE", false, true);
+                    if (hazards.fire) triggerTrip("EMERGENCY: FIRE DETECTED");
+                }
+                 if (coreIntegrity <= 0) triggerTrip("LOSS OF CORE INTEGRITY", true);
+                
+                updateAllUI();
+            }
+
+            function updateAllUI() {
+                for (const key of Object.keys(systems)) {
+                    if (key === 'eccs') continue;
+                    updateSystemDisplay(key, systems[key]);
+                }
+                stabilityReadout.textContent = `${coreIntegrity.toFixed(1)}%`;
+                if(coreIntegrity < 30) {
+                    stabilityReadout.classList.add('text-red-500');
+                } else if (coreIntegrity < 70) {
+                    stabilityReadout.classList.add('text-yellow-400');
+                } else {
+                    stabilityReadout.classList.remove('text-red-500', 'text-yellow-400');
+                }
+            }
+            
+            function updateHazardsUI() {
+                earthquakeIntensityDisplay.textContent = hazards.earthquake.toFixed(1);
+                typhoonSignalDisplay.textContent = hazards.typhoon;
+
+                fireAlarmLight.className = "indicator-light";
+                fireAlarmLight.classList.add(hazards.fire ? 'light-danger' : 'light-off');
+
+                tsunamiWarningLight.className = "indicator-light";
+                tsunamiWarningLight.classList.add(hazards.tsunami ? 'light-danger' : 'light-off');
+            }
+
+            function updateSystemDisplay(id, config) {
+                const readout = document.getElementById(`${id}-readout`);
+                const bar = document.getElementById(`${id}-bar`);
+                const light = document.getElementById(`${id}-light`);
+
+                if (readout) readout.textContent = config.value.toFixed(0);
+                
+                if (bar) {
+                    const percentage = (config.value - config.min) / (config.max - config.min) * 100;
+                    bar.style.height = `${percentage}%`;
+                }
+                
+                if (light) {
+                    const isSafe = (typeof config.safeMin !== 'undefined' ? config.value >= config.safeMin : true) && 
+                                (typeof config.safeMax !== 'undefined' ? config.value <= config.safeMax : true);
+                    
+                    light.className = "indicator-light"; 
+                    if(isSafe) {
+                        light.classList.add('light-ok');
+                        if (bar) bar.style.backgroundColor = '#34d399';
+                    } else {
+                        light.classList.add('light-danger');
+                        if (bar) bar.style.backgroundColor = '#ef4444';
+                    }
+                }
+            }
+
+            function triggerTrip(reason, isMeltdown = false, rodFailure = false) {
+                if(isTripped) return;
+                isTripped = true;
+                
+                if (!rodFailure) {
+                    clearInterval(gameLoop);
+                }
+                
+                hazards.rodFailure = rodFailure;
+
+                // Start siren sound
+                if (audioCtx && !sirenOscillator) {
+                    const sirenGain = audioCtx.createGain();
+                    sirenGain.gain.setValueAtTime(0.2, audioCtx.currentTime); 
+                    sirenGain.connect(audioCtx.destination);
+
+                    sirenOscillator = audioCtx.createOscillator();
+                    sirenOscillator.type = 'sine';
+                    sirenOscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+
+                    lfo = audioCtx.createOscillator();
+                    lfo.type = 'sine';
+                    lfo.frequency.setValueAtTime(1.5, audioCtx.currentTime); 
+
+                    const lfoGain = audioCtx.createGain();
+                    lfoGain.gain.setValueAtTime(300, audioCtx.currentTime);
+
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(sirenOscillator.frequency);
+
+                    sirenOscillator.connect(sirenGain);
+                    sirenOscillator.start();
+                    lfo.start();
+                }
+
+                if (isMeltdown) {
+                    tripMessageContainer.classList.add('hidden');
+                    falloutMessageContainer.classList.remove('hidden');
+                } else {
+                    tripMessageContainer.classList.remove('hidden');
+                    falloutMessageContainer.classList.add('hidden');
+                    meltdownReason.textContent = reason;
+                }
+                
+                meltdownOverlay.classList.add('active');
+                meltdownOverlay.style.opacity = '1';
+                meltdownOverlay.style.pointerEvents = 'auto';
+            }
+
+            // --- Event Listeners ---
+            controlRoom.addEventListener('click', () => {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }, { once: true });
+
+            controlsContainer.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target.classList.contains('westinghouse-button')) {
+                    if (isTripped && !hazards.rodFailure) return;
+
+                    const sysKey = target.dataset.sys;
+                    if (!sysKey) return; 
+                    const op = target.dataset.op;
+                    const config = systems[sysKey];
+                    const step = (config.max - config.min) / 50;
+                    
+                    if (op === '+') {
+                        config.value += step;
+                    } else {
+                        config.value -= step;
+                    }
+                    
+                    config.value = Math.max(config.min, Math.min(config.max, config.value));
+                }
+            });
+            
+            tripButton.addEventListener('click', () => {
+                triggerTrip('MANUAL REACTOR TRIP');
+            });
+
+            resetButton.addEventListener('click', () => {
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                clearInterval(gameLoop);
+                clearInterval(clockLoop);
+                initialize();
+            });
+
+            earthquakeTrigger.addEventListener('click', () => {
+                if(isTripped) return;
+                hazards.earthquake = Math.random() * (8.5 - 5.0) + 5.0;
+                if(hazards.earthquake > 7.5) {
+                    hazards.tsunami = true;
+                }
+                updateHazardsUI();
+                setTimeout(() => { 
+                    hazards.earthquake = 0;
+                    hazards.tsunami = false;
+                    updateHazardsUI();
+                }, 5000);
+            });
+
+            typhoonTrigger.addEventListener('click', () => {
+                if(isTripped) return;
+                hazards.typhoon = (hazards.typhoon + 1) % 6;
+                updateHazardsUI();
+            });
+
+            fireTrigger.addEventListener('click', () => {
+                if(isTripped) return;
+                hazards.fire = !hazards.fire;
+                updateHazardsUI();
+            });
+
+            initialize();
+        });
+    </script>
+</body>
+</html>
